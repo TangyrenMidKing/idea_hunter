@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getVotes, submitVote, getVoterVote, getRoom, VOTES_PER_USER } from '@/lib/db';
+import { getVotes, submitVote, getVoterVote, getRoom, deleteVote, VOTES_PER_USER } from '@/lib/db';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -33,6 +33,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const clean: Record<string, number> = {};
   for (const [k, v] of Object.entries(allocations as Record<string, number>)) {
     if (typeof v === 'number' && v > 0) clean[k] = Math.floor(v);
+  }
+
+  if (Object.keys(clean).length === 0) {
+    await deleteVote(id, voterName.trim());
+    return NextResponse.json({ vote: null });
   }
 
   const vote = await submitVote(id, voterName.trim(), clean);

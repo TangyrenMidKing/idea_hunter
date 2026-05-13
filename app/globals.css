@@ -11,3 +11,22 @@ body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   min-height: 100vh;
 }
+
+.room-theme-light .text-white {
+  color: #0f172a !important;
+}
+
+.room-theme-light .text-gray-200,
+.room-theme-light .text-gray-300 {
+  color: #334155 !important;
+}
+
+.room-theme-light .text-gray-400,
+.room-theme-light .text-gray-500 {
+  color: #64748b !important;
+}
+
+.room-theme-light .text-gray-600,
+.room-theme-light .text-gray-700 {
+  color: #94a3b8 !important;
+}

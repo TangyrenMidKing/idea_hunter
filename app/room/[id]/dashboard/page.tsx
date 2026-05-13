@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { MarkdownText } from '@/lib/MarkdownText';
 
 type Idea = {
   id: string;
@@ -64,7 +65,7 @@ export default function DashboardPage() {
   if (!room) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0f0f13, #1a1a2e, #0f0f13)' }}>
-        <div className="text-gray-400">Loading results...</div>
+        <div className="text-gray-400">Loading leaderboard...</div>
       </div>
     );
   }
@@ -96,7 +97,7 @@ export default function DashboardPage() {
 
       <div className="max-w-2xl mx-auto px-4 py-8">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-white">Results</h1>
+          <h1 className="text-3xl font-bold text-white">Leaderboard</h1>
           <p className="text-gray-400 mt-2 text-sm">
             {voterCount === 0
               ? 'No votes yet — share the room code with your group!'
@@ -111,7 +112,7 @@ export default function DashboardPage() {
             <p className="text-sm text-indigo-300 font-medium mb-1">Group&apos;s Top Pick</p>
             <p className="text-2xl font-bold text-white">{ranked[0].idea.title}</p>
             {ranked[0].idea.description && (
-              <p className="text-gray-400 mt-1 text-sm">{ranked[0].idea.description}</p>
+              <MarkdownText className="mt-1">{ranked[0].idea.description}</MarkdownText>
             )}
             <div className="flex items-center justify-center gap-8 mt-4">
               <div className="text-center">
@@ -176,7 +177,7 @@ export default function DashboardPage() {
                         </span>
                       </div>
                       {item.idea.description && (
-                        <p className="text-sm text-gray-400 mt-0.5">{item.idea.description}</p>
+                        <MarkdownText className="mt-1">{item.idea.description}</MarkdownText>
                       )}
                       <p className="text-xs text-gray-600 mt-1">
                         By {item.idea.added_by}

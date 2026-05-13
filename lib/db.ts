@@ -69,6 +69,24 @@ export async function deleteIdea(ideaId: string): Promise<{ error?: string }> {
   return {};
 }
 
+export async function updateIdea(
+  roomId: string,
+  ideaId: string,
+  title: string,
+  description: string
+): Promise<Idea | null> {
+  const { data, error } = await sb()
+    .from('ideas')
+    .update({ title, description })
+    .eq('id', ideaId)
+    .eq('room_id', roomId)
+    .select()
+    .maybeSingle();
+
+  if (error) throw error;
+  return data as Idea | null;
+}
+
 export async function addIdea(
   roomId: string,
   title: string,
@@ -121,6 +139,18 @@ export async function getVoterVote(roomId: string, voterName: string): Promise<V
     .limit(1)
     .maybeSingle();
   return data ?? null;
+}
+
+export async function deleteVote(roomId: string, voterName: string): Promise<void> {
+  const existing = await getVoterVote(roomId, voterName);
+  if (!existing) return;
+
+  const { error } = await sb()
+    .from('votes')
+    .delete()
+    .eq('id', existing.id);
+
+  if (error) throw error;
 }
 
 export async function submitVote(
