@@ -1,36 +1,74 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# IdeaRank
 
-## Getting Started
+Group idea voting with cumulative votes. Each participant gets **5 tokens** to allocate freely across ideas — stack them all on one, or spread them out.
 
-First, run the development server:
+## Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- **Rooms** — share a room code, everyone joins the same session
+- **Add ideas** — anyone can submit ideas at any time
+- **5-token voting** — allocate up to 5 votes per person, repeats allowed
+- **Live dashboard** — results update every 5 seconds, ranked by total votes
+
+---
+
+## Setup
+
+### 1. Run the SQL migration in Supabase
+
+Go to **Supabase Dashboard → SQL Editor → New Query**, paste and run:
+
+```
+supabase/migrations/20240001_init.sql
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+This creates `rooms`, `ideas`, and `votes` tables with Row Level Security enabled.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 2. Set environment variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Copy `.env.local.example` to `.env.local`:
 
-## Learn More
+```bash
+cp .env.local.example .env.local
+```
 
-To learn more about Next.js, take a look at the following resources:
+Fill in the values from **Supabase Dashboard → Settings → API**:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Variable | Where to find it |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Project URL |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | `anon` / publishable key |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 3. Run locally
 
-## Deploy on Vercel
+```bash
+npm install
+npm run dev
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Open [http://localhost:3000](http://localhost:3000).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+## Deploy
+
+### Deploy to Vercel (recommended for Next.js + Supabase)
+
+1. Push this repo to GitHub.
+2. Go to [vercel.com/new](https://vercel.com/new) and import the repo.
+3. In **Environment Variables**, add:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+4. Deploy — Vercel auto-detects Next.js, no extra config needed.
+
+> **Tip:** Use the [Supabase Vercel Integration](https://vercel.com/integrations/supabase) to sync env vars automatically from your Supabase project.
+
+---
+
+## How voting works
+
+Each user has **5 tokens**. They can:
+- Put all 5 on one idea (`5, 0, 0 …`)
+- Spread them (`2, 2, 1 …`)
+- Leave some unspent
+
+The dashboard ranks ideas by **total tokens received** across all voters.
