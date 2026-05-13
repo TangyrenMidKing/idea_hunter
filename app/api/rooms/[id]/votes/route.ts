@@ -21,7 +21,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!room) return NextResponse.json({ error: 'Room not found' }, { status: 404 });
 
   const { voterName, allocations } = await req.json();
-  if (!voterName || typeof allocations !== 'object' || Array.isArray(allocations)) {
+  if (typeof voterName !== 'string' || !voterName.trim() || typeof allocations !== 'object' || Array.isArray(allocations)) {
     return NextResponse.json({ error: 'voterName and allocations object are required' }, { status: 400 });
   }
 

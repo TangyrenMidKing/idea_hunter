@@ -44,14 +44,11 @@ export async function getRoom(id: string): Promise<Room | null> {
 export async function createRoom(id: string, description: string): Promise<Room> {
   const { data, error } = await sb()
     .from('rooms')
-    .upsert({ id, description }, { onConflict: 'id', ignoreDuplicates: true })
+    .insert({ id, description })
     .select()
     .single();
 
-  if (error) {
-    const { data: existing } = await sb().from('rooms').select('*').eq('id', id).single();
-    return existing as Room;
-  }
+  if (error) throw error;
   return data as Room;
 }
 
@@ -90,6 +87,10 @@ export async function addIdea(
 
 // ── Votes ────────────────────────────────────────────────────────────────────
 
+function normalizeVoterName(name: string) {
+  return name.trim().toLocaleLowerCase();
+}
+
 export async function getVotes(roomId: string): Promise<Vote[]> {
   const { data } = await sb()
     .from('votes')
@@ -100,12 +101,25 @@ export async function getVotes(roomId: string): Promise<Vote[]> {
 }
 
 export async function getVoterVote(roomId: string, voterName: string): Promise<Vote | null> {
+  const normalizedName = normalizeVoterName(voterName);
+
+  const { data: exact } = await sb()
+    .from('votes')
+    .select('*')
+    .eq('room_id', roomId)
+    .eq('voter_name', normalizedName)
+    .maybeSingle();
+
+  if (exact) return exact as Vote;
+
   const { data } = await sb()
     .from('votes')
     .select('*')
     .eq('room_id', roomId)
-    .eq('voter_name', voterName)
-    .single();
+    .ilike('voter_name', normalizedName)
+    .order('submitted_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
   return data ?? null;
 }
 
@@ -114,11 +128,27 @@ export async function submitVote(
   voterName: string,
   allocations: Record<string, number>
 ): Promise<Vote> {
+  const normalizedName = normalizeVoterName(voterName);
+  const submittedAt = new Date().toISOString();
+  const existing = await getVoterVote(roomId, normalizedName);
+
+  if (existing) {
+    const { data, error } = await sb()
+      .from('votes')
+      .update({ voter_name: normalizedName, allocations, submitted_at: submittedAt })
+      .eq('id', existing.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as Vote;
+  }
+
   const id = `vote_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
   const { data, error } = await sb()
     .from('votes')
     .upsert(
-      { id, room_id: roomId, voter_name: voterName, allocations, submitted_at: new Date().toISOString() },
+      { id, room_id: roomId, voter_name: normalizedName, allocations, submitted_at: submittedAt },
       { onConflict: 'room_id,voter_name' }
     )
     .select()

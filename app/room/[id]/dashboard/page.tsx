@@ -46,9 +46,17 @@ export default function DashboardPage() {
   }, [id]);
 
   useEffect(() => {
-    load();
+    let cancelled = false;
+
+    Promise.resolve().then(() => {
+      if (!cancelled) void load();
+    });
+
     const t = setInterval(load, 5000);
-    return () => clearInterval(t);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
   }, [load]);
 
   const maxTokens = ranked.length > 0 ? Math.max(...ranked.map(r => r.totalTokens), 1) : 1;

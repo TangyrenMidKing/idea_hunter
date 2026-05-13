@@ -19,6 +19,33 @@ type Room = {
   description: string;
 };
 
+function roomNameKey(roomId: string) {
+  return `name_${roomId}`;
+}
+
+function readCachedName(roomId: string) {
+  try {
+    return (
+      sessionStorage.getItem(roomNameKey(roomId)) ||
+      localStorage.getItem(roomNameKey(roomId)) ||
+      localStorage.getItem('name') ||
+      ''
+    ).trim();
+  } catch {
+    return '';
+  }
+}
+
+function cacheName(roomId: string, name: string) {
+  try {
+    sessionStorage.setItem(roomNameKey(roomId), name);
+    localStorage.setItem(roomNameKey(roomId), name);
+    localStorage.setItem('name', name);
+  } catch {
+    // Private browsing or locked-down environments may reject storage writes.
+  }
+}
+
 function TokenDots({ count, max }: { count: number; max: number }) {
   return (
     <div className="flex gap-1 flex-wrap">
@@ -132,6 +159,8 @@ export default function RoomPage() {
   const [room, setRoom] = useState<Room | null>(null);
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [myName, setMyName] = useState('');
+  const [nameInput, setNameInput] = useState('');
+  const [nameLoaded, setNameLoaded] = useState(false);
   const [voteCount, setVoteCount] = useState(0);
   const [allocations, setAllocations] = useState<Record<string, number>>({});
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
@@ -172,13 +201,44 @@ export default function RoomPage() {
   }, [myName, id]);
 
   useEffect(() => {
-    const name = sessionStorage.getItem(`name_${id}`);
-    if (!name) { router.push('/'); return; }
-    setMyName(name);
-    loadData();
+    let cancelled = false;
+
+    Promise.resolve().then(() => {
+      if (cancelled) return;
+      const cachedName = readCachedName(id);
+      if (cachedName) {
+        setMyName(cachedName);
+        setNameInput(cachedName);
+      }
+      setNameLoaded(true);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    Promise.resolve().then(() => {
+      if (!cancelled) void loadData();
+    });
+
     const t = setInterval(loadData, 10000);
-    return () => clearInterval(t);
-  }, [id, router, loadData]);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
+  }, [loadData]);
+
+  function handleNameSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const cleanName = nameInput.trim();
+    if (!cleanName) return;
+    cacheName(id, cleanName);
+    setMyName(cleanName);
+  }
 
   function addToken(ideaId: string) {
     if (tokensLeft <= 0) return;
@@ -198,13 +258,13 @@ export default function RoomPage() {
   async function handleSubmit() {
     if (tokensUsed === 0) return;
     setSubmitStatus('saving');
-    await fetch(`/api/rooms/${id}/votes`, {
+    const res = await fetch(`/api/rooms/${id}/votes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ voterName: myName, allocations }),
     });
+    if (res.ok) await loadData();
     setSubmitStatus('saved');
-    setVoteCount(c => c + 1);
     setTimeout(() => setSubmitStatus('idle'), 3000);
   }
 
@@ -243,6 +303,57 @@ export default function RoomPage() {
       <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0f0f13, #1a1a2e, #0f0f13)' }}>
         <div className="text-gray-400">Loading room...</div>
       </div>
+    );
+  }
+
+  if (!nameLoaded || !myName) {
+    return (
+      <main className="min-h-screen flex items-center justify-center px-4" style={{ background: 'linear-gradient(135deg, #0f0f13 0%, #1a1a2e 50%, #0f0f13 100%)' }}>
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4" style={{ background: 'linear-gradient(135deg, #6366f1, #a855f7)' }}>
+              <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
+                <path d="M8 24L16 8L24 24" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M10.5 19H21.5" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
+              </svg>
+            </div>
+            <h1 className="text-3xl font-bold text-white tracking-tight">Enter Room</h1>
+            <p className="text-gray-400 mt-2">
+              Join <span className="font-mono text-indigo-300">#{id}</span>
+              {room?.description ? ` - ${room.description}` : ''}
+            </p>
+          </div>
+
+          <form onSubmit={handleNameSubmit} className="rounded-2xl p-8 space-y-5" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)' }}>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Your Name</label>
+              <input
+                type="text"
+                value={nameInput}
+                onChange={e => setNameInput(e.target.value)}
+                placeholder="e.g. Alice"
+                maxLength={40}
+                required
+                className="w-full px-4 py-3 rounded-xl text-white outline-none transition-all"
+                style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: 'white' }}
+                onFocus={e => (e.target.style.borderColor = '#6366f1')}
+                onBlur={e => (e.target.style.borderColor = 'rgba(255,255,255,0.15)')}
+                autoFocus
+              />
+              <p className="text-xs text-gray-500 mt-1">We will remember this name for future visits on this browser.</p>
+            </div>
+
+            <button
+              type="submit"
+              disabled={!nameInput.trim()}
+              className="w-full py-3 rounded-xl font-semibold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ background: 'linear-gradient(135deg, #6366f1, #a855f7)' }}
+            >
+              Join Room
+            </button>
+          </form>
+        </div>
+      </main>
     );
   }
 
